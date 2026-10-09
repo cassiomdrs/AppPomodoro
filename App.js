@@ -7,60 +7,66 @@ import {
   TextInput, 
   SafeAreaView, 
   StatusBar,
-  ScrollView
+  ScrollView,
+  Vibration
 } from 'react-native';
-import { Vibration } from 'react-native';
 
 export default function App() {
-  // 1. Estados (Guardam os dados que mudam na tela)
-  const [segundos, setSegundos] = useState(25 * 60); // 25 min
-  const [rodando, setRodando] = useState(true);
+  // 1. Estados
+  const TEMPO_ESTUDO = 25 * 60; // 25 minutos em segundos
+  const TEMPO_DESCANSO = 5 * 60;  // 5 minutos em segundos
+
+  const [segundos, setSegundos] = useState(TEMPO_ESTUDO);
+  const [modo, setModo] = useState('FOCO'); // 'FOCO' ou 'DESCANSO'
+  const [rodando, setRodando] = useState(false); // Inicia pausado
   const [duvida, setDuvida] = useState('');
   const [duvidasSalvas, setDuvidasSalvas] = useState([
     'Qual a diferença entre UI Design, UX Design e o Design System na prática?'
   ]);
   const [mostrarLista, setMostrarLista] = useState(false);
 
-  // 2. Função para tocar o alarme e vibrar o celular
-  async function tocarAlarme() {
-    // Faz o celular vibrar por 1 segundo
+  // 2. Alarme com Vibração
+  function tocarAlarme() {
     Vibration.vibrate([0, 500, 200, 500, 200, 1000]);
-
-    // Toca um som de alarme/beep
-    try {
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: 'https://actions.google.com/sounds/v1/alarms/beep_short.ogg' }
-      );
-      await sound.playAsync();
-    } catch (error) {
-      console.log('Erro ao tocar som:', error);
-    }
   }
 
-  // 3. Lógica do Relógio (Contagem regressiva)
+  // 3. Temporizador
   useEffect(() => {
     let intervalo = null;
+
     if (rodando && segundos > 0) {
       intervalo = setInterval(() => {
         setSegundos((seg) => seg - 1);
       }, 1000);
     } else if (segundos === 0 && rodando) {
       setRodando(false);
-      tocarAlarme(); // 🔔 Dispara o alarme quando chega a 0!
+      tocarAlarme();
+
+      if (modo === 'FOCO') {
+        setModo('DESCANSO');
+        setSegundos(TEMPO_DESCANSO);
+      } else {
+        setModo('FOCO');
+        setSegundos(TEMPO_ESTUDO);
+      }
+
       clearInterval(intervalo);
     }
-    return () => clearInterval(intervalo);
-  }, [rodando, segundos]);
 
-  // Formata o tempo para "MM:SS"
+    return () => clearInterval(intervalo);
+  }, [rodando, segundos, modo]);
+
+  // Formatação do Tempo (MM:SS)
   const minutosFormatados = String(Math.floor(segundos / 60)).padStart(2, '0');
   const segundosFormatados = String(segundos % 60).padStart(2, '0');
 
-  // Funções dos botões
+  // Ações dos Botões
   const alternarPausa = () => setRodando(!rodando);
+
   const interromper = () => {
     setRodando(false);
-    setSegundos(25 * 60); // Reseta para 25 minutos
+    setModo('FOCO');
+    setSegundos(TEMPO_ESTUDO);
   };
 
   const salvarDuvida = () => {
@@ -82,11 +88,14 @@ export default function App() {
           <Text style={styles.iconText}>⋮</Text>
         </View>
 
-        {/* Círculo do Relógio Pomodoro */}
+        {/* Relógio Pomodoro */}
         <View style={styles.timerContainer}>
-          <View style={styles.timerCircle}>
+          <View style={[
+            styles.timerCircle, 
+            modo === 'DESCANSO' && styles.timerCircleDescanso
+          ]}>
             <Text style={styles.timerText}>{minutosFormatados}:{segundosFormatados}</Text>
-            <Text style={styles.timerSubtext}>FOCO</Text>
+            <Text style={styles.timerSubtext}>{modo}</Text>
             <TouchableOpacity onPress={interromper}>
               <Text style={styles.closeIcon}>✕</Text>
             </TouchableOpacity>
@@ -108,16 +117,17 @@ export default function App() {
             />
           </View>
 
-          {/* Botão Salvar Dúvida */}
           <TouchableOpacity style={styles.buttonPrimary} onPress={salvarDuvida}>
             <Text style={styles.buttonPrimaryText}>📄 Salvar Dúvida</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Botões de Ação: Pausar e Interromper */}
+        {/* Botões de Ação */}
         <View style={styles.actionButtonsRow}>
           <TouchableOpacity style={styles.buttonSecondary} onPress={alternarPausa}>
-            <Text style={styles.buttonSecondaryText}>{rodando ? 'Pausar' : 'Continuar'}</Text>
+            <Text style={styles.buttonSecondaryText}>
+              {rodando ? 'Pausar' : (segundos === (modo === 'FOCO' ? TEMPO_ESTUDO : TEMPO_DESCANSO) ? `Iniciar ${modo}` : 'Continuar')}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.buttonSecondary} onPress={interromper}>
@@ -137,7 +147,7 @@ export default function App() {
           </TouchableOpacity>
         </View>
 
-        {/* Lista de Dúvidas Guardadas */}
+        {/* Lista de Dúvidas */}
         {mostrarLista && (
           <View style={styles.listaContainer}>
             {duvidasSalvas.map((item, index) => (
@@ -190,6 +200,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#26272d',
+  },
+  timerCircleDescanso: {
+    borderColor: '#4caf50',
   },
   timerText: {
     color: '#ffffff',
