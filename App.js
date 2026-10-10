@@ -46,6 +46,15 @@ export default function App() {
   const [anotacoesSalvas, setAnotacoesSalvas] = useState([]);
   const [mostrarLista, setMostrarLista] = useState(false);
 
+  // Função para pegar a data local exata do celular (sem problema de fuso horário UTC)
+  const obterDataLocal = () => {
+    const agora = new Date();
+    const ano = agora.getFullYear();
+    const mes = String(agora.getMonth() + 1).padStart(2, '0');
+    const dia = String(agora.getDate()).padStart(2, '0');
+    return `${ano}-${mes}-${dia}`;
+  };
+
   // 2. Carregar Anotações, Presets e Estatísticas do celular
   useEffect(() => {
     carregarDadosLocais();
@@ -63,10 +72,12 @@ export default function App() {
         setPresets(JSON.parse(dadosPresets));
       }
 
-      const hojeStr = new Date().toISOString().split('T')[0];
+      const hojeStr = obterDataLocal();
       const dadosSessoes = await AsyncStorage.getItem(`@pomonai:sessoes_${hojeStr}`);
       if (dadosSessoes !== null) {
         setSessoesHoje(parseInt(dadosSessoes) || 0);
+      } else {
+        setSessoesHoje(0);
       }
     } catch (e) {
       console.log('Erro ao carregar dados locais:', e);
@@ -93,7 +104,7 @@ export default function App() {
     const novaQtd = sessoesHoje + 1;
     setSessoesHoje(novaQtd);
     try {
-      const hojeStr = new Date().toISOString().split('T')[0];
+      const hojeStr = obterDataLocal();
       await AsyncStorage.setItem(`@pomonai:sessoes_${hojeStr}`, String(novaQtd));
     } catch (e) {
       console.log('Erro ao salvar contador de sessões:', e);
@@ -254,7 +265,6 @@ export default function App() {
 
   // Gerenciamento de Anotações com ROLAGEM AUTOMÁTICA
   const focarCampoAnotacoes = () => {
-    // Aguarda a animação do teclado subir e rola a tela para focar no campo
     setTimeout(() => {
       if (scrollViewRef.current) {
         scrollViewRef.current.scrollToEnd({ animated: true });
@@ -438,7 +448,7 @@ export default function App() {
             </TouchableOpacity>
           </View>
 
-          {/* Módulo de Anotações (com ajuste automático de tela) */}
+          {/* Módulo de Anotações */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Anotações Rápidas</Text>
             
