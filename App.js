@@ -161,7 +161,6 @@ export default function App() {
   const gerenciarCliquePreset = (presetItem) => {
     if (sessaoIniciada) return;
 
-    // Verificar se o tempo digitado nos campos difere do tempo do preset
     const mesmoTempo = 
       (parseInt(focoHoras) || 0) === (parseInt(presetItem.fH) || 0) &&
       (parseInt(focoMinutos) || 0) === (parseInt(presetItem.fM) || 0) &&
@@ -169,10 +168,8 @@ export default function App() {
       (parseInt(descansoMinutos) || 0) === (parseInt(presetItem.dM) || 0);
 
     if (mesmoTempo) {
-      // Se for igual, apenas aplica normalmente
       aplicarPreset(presetItem.fH, presetItem.fM, presetItem.dH, presetItem.dM);
     } else {
-      // Se for diferente, sugere salvar o novo tempo digitado ou carregar o preset antigo
       Alert.alert(
         "Opções de Preset",
         `Você deseja aplicar o tempo deste preset ou salvar a sua nova configuração digitada nele?`,
@@ -287,6 +284,17 @@ export default function App() {
     Alert.alert("Copiado!", "Todas as suas anotações foram copiadas para a área de transferência.");
   };
 
+  // Rótulo Dinâmico com Ícones para o Botão Principal
+  const obterRotuloBotaoAcao = () => {
+    if (rodando) {
+      return "⏸️ Pausar";
+    }
+    if (sessaoIniciada) {
+      return "▶️ Continuar";
+    }
+    return "▶️ Iniciar";
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1c1d22" />
@@ -391,6 +399,21 @@ export default function App() {
           </View>
         </View>
 
+        {/* Botões de Controle de Sessão com Ícones e Hierarquia Correta */}
+        <View style={styles.actionButtonsRow}>
+          <TouchableOpacity style={styles.buttonSecondary} onPress={alternarPausa}>
+            <Text style={styles.buttonSecondaryText}>
+              {obterRotuloBotaoAcao()}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.buttonSecondary} onPress={solicitarInterrupcao}>
+            <Text style={styles.buttonSecondaryText}>
+              ⏹️ Interromper
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Módulo de Anotações */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Anotações Rápidas</Text>
@@ -408,19 +431,6 @@ export default function App() {
 
           <TouchableOpacity style={styles.buttonPrimary} onPress={adicionarAnotacao}>
             <Text style={styles.buttonPrimaryText}>📄 Salvar Anotação</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Botões de Controle */}
-        <View style={styles.actionButtonsRow}>
-          <TouchableOpacity style={styles.buttonSecondary} onPress={alternarPausa}>
-            <Text style={styles.buttonSecondaryText}>
-              {rodando ? 'Pausar' : (sessaoIniciada ? 'Continuar' : 'Iniciar')}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.buttonSecondary} onPress={solicitarInterrupcao}>
-            <Text style={styles.buttonSecondaryText}>Interromper</Text>
           </TouchableOpacity>
         </View>
 
@@ -585,6 +595,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 6,
   },
+  actionButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 10,
+  },
+  buttonSecondary: {
+    flex: 0.48,
+    borderColor: '#444550',
+    borderWidth: 1.5,
+    paddingVertical: 12,
+    borderRadius: 20,
+    alignItems: 'center',
+  },
+  buttonSecondaryText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   card: {
     backgroundColor: '#2b2c34',
     borderRadius: 16,
@@ -620,24 +648,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: 'bold',
     fontSize: 15,
-  },
-  actionButtonsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  buttonSecondary: {
-    flex: 0.48,
-    borderColor: '#444550',
-    borderWidth: 1.5,
-    paddingVertical: 12,
-    borderRadius: 20,
-    alignItems: 'center',
-  },
-  buttonSecondaryText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '500',
   },
   footerCard: {
     backgroundColor: '#2b2c34',
