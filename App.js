@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -9,12 +9,18 @@ import {
   StatusBar,
   ScrollView,
   Vibration,
-  Alert
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Clipboard from 'expo-clipboard';
 
 export default function App() {
+  // Referência para controlar a rolagem da ScrollView
+  const scrollViewRef = useRef(null);
+
   // 1. Estados de Configuração de Tempo (Horas e Minutos)
   const [focoHoras, setFocoHoras] = useState('0');
   const [focoMinutos, setFocoMinutos] = useState('25');
@@ -150,7 +156,7 @@ export default function App() {
     return `${mStr}:${sStr}`;
   };
 
-  // Formatação dos Textos nos Botões de Preset (ex: "25m / 5m" ou "1h / 15m")
+  // Formatação dos Textos nos Botões de Preset
   const formatarTextoPreset = (fH, fM, dH, dM) => {
     const focoText = parseInt(fH) > 0 ? `${fH}h ${fM}m` : `${fM}m`;
     const descansoText = parseInt(dH) > 0 ? `${dH}h ${dM}m` : `${dM}m`;
@@ -246,13 +252,23 @@ export default function App() {
     setSegundos(calcularSegundosTotais(focoHoras, focoMinutos));
   };
 
-  // Gerenciamento de Anotações
+  // Gerenciamento de Anotações com ROLAGEM AUTOMÁTICA
+  const focarCampoAnotacoes = () => {
+    // Aguarda a animação do teclado subir e rola a tela para focar no campo
+    setTimeout(() => {
+      if (scrollViewRef.current) {
+        scrollViewRef.current.scrollToEnd({ animated: true });
+      }
+    }, 200);
+  };
+
   const adicionarAnotacao = () => {
     if (anotacao.trim() !== '') {
       const novaLista = [...anotacoesSalvas, anotacao];
       setAnotacoesSalvas(novaLista);
       salvarAnotacoesNoStorage(novaLista);
       setAnotacao('');
+      Keyboard.dismiss();
     }
   };
 
@@ -284,7 +300,6 @@ export default function App() {
     Alert.alert("Copiado!", "Todas as suas anotações foram copiadas para a área de transferência.");
   };
 
-  // Rótulo Dinâmico com Ícones para o Botão Principal
   const obterRotuloBotaoAcao = () => {
     if (rodando) {
       return "⏸️ Pausar";
@@ -298,179 +313,193 @@ export default function App() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1c1d22" />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        
-        {/* Cabeçalho Limpo */}
-        <View style={styles.headerClean}>
-          <Text style={styles.headerTitle}>Pomonai by Cássio</Text>
-          <Text style={styles.sessionCounterBadge}>🎯 Sessões Hoje: {sessoesHoje}</Text>
-        </View>
+      <KeyboardAvoidingView 
+        style={styles.keyboardContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
+      >
+        <ScrollView 
+          ref={scrollViewRef}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          
+          {/* Cabeçalho Limpo */}
+          <View style={styles.headerClean}>
+            <Text style={styles.headerTitle}>Pomonai by Cássio</Text>
+            <Text style={styles.sessionCounterBadge}>🎯 Sessões Hoje: {sessoesHoje}</Text>
+          </View>
 
-        {/* Configurações de Tempo */}
-        {!sessaoIniciada && (
-          <View style={styles.configCard}>
-            <Text style={styles.configTitle}>Ajustar Tempo da Sessão</Text>
-            
-            {/* Campo FOCO */}
-            <View style={styles.timeSettingRow}>
-              <Text style={styles.settingLabel}>FOCO:</Text>
-              <View style={styles.inputsPair}>
-                <TextInput
-                  style={styles.timeInput}
-                  keyboardType="numeric"
-                  maxLength={2}
-                  value={focoHoras}
-                  onFocus={() => setFocoHoras('')}
-                  onBlur={() => { if (focoHoras === '') setFocoHoras('0'); }}
-                  onChangeText={(val) => {
-                    setFocoHoras(val);
-                    if (modo === 'FOCO') setSegundos(calcularSegundosTotais(val, focoMinutos));
-                  }}
-                />
-                <Text style={styles.unitText}>h</Text>
-                <TextInput
-                  style={styles.timeInput}
-                  keyboardType="numeric"
-                  maxLength={2}
-                  value={focoMinutos}
-                  onFocus={() => setFocoMinutos('')}
-                  onBlur={() => { if (focoMinutos === '') setFocoMinutos('0'); }}
-                  onChangeText={(val) => {
-                    setFocoMinutos(val);
-                    if (modo === 'FOCO') setSegundos(calcularSegundosTotais(focoHoras, val));
-                  }}
-                />
-                <Text style={styles.unitText}>min</Text>
+          {/* Configurações de Tempo */}
+          {!sessaoIniciada && (
+            <View style={styles.configCard}>
+              <Text style={styles.configTitle}>Ajustar Tempo da Sessão</Text>
+              
+              {/* Campo FOCO */}
+              <View style={styles.timeSettingRow}>
+                <Text style={styles.settingLabel}>FOCO:</Text>
+                <View style={styles.inputsPair}>
+                  <TextInput
+                    style={styles.timeInput}
+                    keyboardType="numeric"
+                    maxLength={2}
+                    value={focoHoras}
+                    onFocus={() => setFocoHoras('')}
+                    onBlur={() => { if (focoHoras === '') setFocoHoras('0'); }}
+                    onChangeText={(val) => {
+                      setFocoHoras(val);
+                      if (modo === 'FOCO') setSegundos(calcularSegundosTotais(val, focoMinutos));
+                    }}
+                  />
+                  <Text style={styles.unitText}>h</Text>
+                  <TextInput
+                    style={styles.timeInput}
+                    keyboardType="numeric"
+                    maxLength={2}
+                    value={focoMinutos}
+                    onFocus={() => setFocoMinutos('')}
+                    onBlur={() => { if (focoMinutos === '') setFocoMinutos('0'); }}
+                    onChangeText={(val) => {
+                      setFocoMinutos(val);
+                      if (modo === 'FOCO') setSegundos(calcularSegundosTotais(focoHoras, val));
+                    }}
+                  />
+                  <Text style={styles.unitText}>min</Text>
+                </View>
+              </View>
+
+              {/* Campo DESCANSO */}
+              <View style={styles.timeSettingRow}>
+                <Text style={styles.settingLabel}>DESCANSO:</Text>
+                <View style={styles.inputsPair}>
+                  <TextInput
+                    style={styles.timeInput}
+                    keyboardType="numeric"
+                    maxLength={2}
+                    value={descansoHoras}
+                    onFocus={() => setDescansoHoras('')}
+                    onBlur={() => { if (descansoHoras === '') setDescansoHoras('0'); }}
+                    onChangeText={(val) => setDescansoHoras(val)}
+                  />
+                  <Text style={styles.unitText}>h</Text>
+                  <TextInput
+                    style={styles.timeInput}
+                    keyboardType="numeric"
+                    maxLength={2}
+                    value={descansoMinutos}
+                    onFocus={() => setDescansoMinutos('')}
+                    onBlur={() => { if (descansoMinutos === '') setDescansoMinutos('0'); }}
+                    onChangeText={(val) => setDescansoMinutos(val)}
+                  />
+                  <Text style={styles.unitText}>min</Text>
+                </View>
+              </View>
+
+              {/* Presets Rápidos e Personalizáveis */}
+              <View style={styles.presetsRow}>
+                {presets.map((preset) => (
+                  <TouchableOpacity 
+                    key={preset.id}
+                    style={styles.presetButton} 
+                    onPress={() => gerenciarCliquePreset(preset)}
+                  >
+                    <Text style={styles.presetText}>
+                      {formatarTextoPreset(preset.fH, preset.fM, preset.dH, preset.dM)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             </View>
+          )}
 
-            {/* Campo DESCANSO */}
-            <View style={styles.timeSettingRow}>
-              <Text style={styles.settingLabel}>DESCANSO:</Text>
-              <View style={styles.inputsPair}>
-                <TextInput
-                  style={styles.timeInput}
-                  keyboardType="numeric"
-                  maxLength={2}
-                  value={descansoHoras}
-                  onFocus={() => setDescansoHoras('')}
-                  onBlur={() => { if (descansoHoras === '') setDescansoHoras('0'); }}
-                  onChangeText={(val) => setDescansoHoras(val)}
-                />
-                <Text style={styles.unitText}>h</Text>
-                <TextInput
-                  style={styles.timeInput}
-                  keyboardType="numeric"
-                  maxLength={2}
-                  value={descansoMinutos}
-                  onFocus={() => setDescansoMinutos('')}
-                  onBlur={() => { if (descansoMinutos === '') setDescansoMinutos('0'); }}
-                  onChangeText={(val) => setDescansoMinutos(val)}
-                />
-                <Text style={styles.unitText}>min</Text>
-              </View>
-            </View>
-
-            {/* Presets Rápidos e Personalizáveis */}
-            <View style={styles.presetsRow}>
-              {presets.map((preset) => (
-                <TouchableOpacity 
-                  key={preset.id}
-                  style={styles.presetButton} 
-                  onPress={() => gerenciarCliquePreset(preset)}
-                >
-                  <Text style={styles.presetText}>
-                    {formatarTextoPreset(preset.fH, preset.fM, preset.dH, preset.dM)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+          {/* Relógio Pomodoro */}
+          <View style={styles.timerContainer}>
+            <View style={styles.timerCircle}>
+              <Text style={styles.timerText}>{formatarTempo(segundos)}</Text>
+              <Text style={styles.timerSubtext}>{modo}</Text>
+              <TouchableOpacity onPress={solicitarInterrupcao}>
+                <Text style={styles.closeIcon}>✕</Text>
+              </TouchableOpacity>
             </View>
           </View>
-        )}
 
-        {/* Relógio Pomodoro */}
-        <View style={styles.timerContainer}>
-          <View style={styles.timerCircle}>
-            <Text style={styles.timerText}>{formatarTempo(segundos)}</Text>
-            <Text style={styles.timerSubtext}>{modo}</Text>
-            <TouchableOpacity onPress={solicitarInterrupcao}>
-              <Text style={styles.closeIcon}>✕</Text>
+          {/* Botões de Controle de Sessão */}
+          <View style={styles.actionButtonsRow}>
+            <TouchableOpacity style={styles.buttonSecondary} onPress={alternarPausa}>
+              <Text style={styles.buttonSecondaryText}>
+                {obterRotuloBotaoAcao()}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.buttonSecondary} onPress={solicitarInterrupcao}>
+              <Text style={styles.buttonSecondaryText}>
+                ⏹️ Interromper
+              </Text>
             </TouchableOpacity>
           </View>
-        </View>
 
-        {/* Botões de Controle de Sessão com Ícones e Hierarquia Correta */}
-        <View style={styles.actionButtonsRow}>
-          <TouchableOpacity style={styles.buttonSecondary} onPress={alternarPausa}>
-            <Text style={styles.buttonSecondaryText}>
-              {obterRotuloBotaoAcao()}
-            </Text>
-          </TouchableOpacity>
+          {/* Módulo de Anotações (com ajuste automático de tela) */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Anotações Rápidas</Text>
+            
+            <View style={styles.inputBoxContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder="Digite sua anotação ou dúvida do momento..."
+                placeholderTextColor="#888"
+                value={anotacao}
+                onChangeText={setAnotacao}
+                onFocus={focarCampoAnotacoes}
+                multiline
+              />
+            </View>
 
-          <TouchableOpacity style={styles.buttonSecondary} onPress={solicitarInterrupcao}>
-            <Text style={styles.buttonSecondaryText}>
-              ⏹️ Interromper
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Módulo de Anotações */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Anotações Rápidas</Text>
-          
-          <View style={styles.inputBoxContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder="Digite sua anotação ou dúvida do momento..."
-              placeholderTextColor="#888"
-              value={anotacao}
-              onChangeText={setAnotacao}
-              multiline
-            />
+            <TouchableOpacity style={styles.buttonPrimary} onPress={adicionarAnotacao}>
+              <Text style={styles.buttonPrimaryText}>📄 Salvar Anotação</Text>
+            </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.buttonPrimary} onPress={adicionarAnotacao}>
-            <Text style={styles.buttonPrimaryText}>📄 Salvar Anotação</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Rodapé: Contador de Anotações */}
-        <View style={styles.footerCard}>
-          <Text style={styles.footerText}>
-            Anotações: <Text style={styles.footerBold}>{anotacoesSalvas.length}</Text>
-          </Text>
-          <TouchableOpacity onPress={() => setMostrarLista(!mostrarLista)}>
-            <Text style={styles.footerLink}>
-              {mostrarLista ? 'Ocultar Anotações' : 'Ver Minhas Anotações'}
+          {/* Rodapé: Contador de Anotações */}
+          <View style={styles.footerCard}>
+            <Text style={styles.footerText}>
+              Anotações: <Text style={styles.footerBold}>{anotacoesSalvas.length}</Text>
             </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Listagem de Anotações Salvas */}
-        {mostrarLista && (
-          <View style={styles.listaContainer}>
-            {anotacoesSalvas.length > 0 && (
-              <TouchableOpacity style={styles.copyButton} onPress={copiarAnotacoes}>
-                <Text style={styles.copyButtonText}>📋 Copiar Todas as Anotações</Text>
-              </TouchableOpacity>
-            )}
-
-            {anotacoesSalvas.length === 0 ? (
-              <Text style={styles.emptyText}>Nenhuma anotação salva até o momento.</Text>
-            ) : (
-              anotacoesSalvas.map((item, index) => (
-                <View key={index} style={styles.itemAnotacao}>
-                  <Text style={styles.itemTexto}>{index + 1}. {item}</Text>
-                  <TouchableOpacity onPress={() => solicitarRemocaoAnotacao(index)}>
-                    <Text style={styles.deleteIcon}>🗑️</Text>
-                  </TouchableOpacity>
-                </View>
-              ))
-            )}
+            <TouchableOpacity onPress={() => {
+              setMostrarLista(!mostrarLista);
+              if (!mostrarLista) focarCampoAnotacoes();
+            }}>
+              <Text style={styles.footerLink}>
+                {mostrarLista ? 'Ocultar Anotações' : 'Ver Minhas Anotações'}
+              </Text>
+            </TouchableOpacity>
           </View>
-        )}
 
-      </ScrollView>
+          {/* Listagem de Anotações Salvas */}
+          {mostrarLista && (
+            <View style={styles.listaContainer}>
+              {anotacoesSalvas.length > 0 && (
+                <TouchableOpacity style={styles.copyButton} onPress={copiarAnotacoes}>
+                  <Text style={styles.copyButtonText}>📋 Copiar Todas as Anotações</Text>
+                </TouchableOpacity>
+              )}
+
+              {anotacoesSalvas.length === 0 ? (
+                <Text style={styles.emptyText}>Nenhuma anotação salva até o momento.</Text>
+              ) : (
+                anotacoesSalvas.map((item, index) => (
+                  <View key={index} style={styles.itemAnotacao}>
+                    <Text style={styles.itemTexto}>{index + 1}. {item}</Text>
+                    <TouchableOpacity onPress={() => solicitarRemocaoAnotacao(index)}>
+                      <Text style={styles.deleteIcon}>🗑️</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))
+              )}
+            </View>
+          )}
+
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -481,8 +510,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#1c1d22',
   },
+  keyboardContainer: {
+    flex: 1,
+  },
   scrollContent: {
     padding: 20,
+    paddingBottom: 60,
   },
   headerClean: {
     alignItems: 'center',
